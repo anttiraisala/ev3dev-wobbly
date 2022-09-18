@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from time import sleep
+from time import sleep, perf_counter
 
 from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, SpeedPercent, MoveTank
 from ev3dev2.sensor import INPUT_1
@@ -9,16 +9,27 @@ from ev3dev2.led import Leds
 from ev3dev2.sound import Sound
 from ev3dev2.button import Button
 
+from threading import Thread
+
+# Import math Library
+import math
+
 sound = Sound()
 sound.speak('Welcome to the E V 3 dev project!')
+sound.speak('Press backbutton on brick to quit.')
 
-sound.play_song((
-    ('D4', 'e3'),
-    ('D4', 'e3'),
-    ('D4', 'e3'),
-    ('G4', 'h'),
-    ('D5', 'h')
-))
+
+def sw():
+    sound.play_song((
+        ('D4', 'e3'),
+        ('D4', 'e3'),
+        ('D4', 'e3'),
+        ('G4', 'h'),
+        ('D5', 'h')
+    ))
+
+tSW = Thread(target=sw)
+tSW.start()
 
 import os
 os.system('setfont Lat15-TerminusBold14')
@@ -34,8 +45,7 @@ leds = Leds()
 
 print("Press the touch sensor to change the LED color!")
 
-m = LargeMotor(OUTPUT_A)
-m.on_for_rotations(SpeedPercent(75), 5)
+
 
 
 btn = Button()
@@ -46,9 +56,31 @@ def backspace(state):
         print('Backspace button pressed')
     else:
         print('Backspace button released')
+        global runLoop
         runLoop = False
 
 btn.on_backspace=backspace
+
+m = LargeMotor(OUTPUT_A)
+mb = LargeMotor(OUTPUT_B)
+
+def task_runMotorB():
+
+    while runLoop:
+        speeda = math.sin(perf_counter()*2.0) * 25.0
+        m.on(speed=speeda)
+
+        speedb = math.sin(perf_counter()) * 100.0
+        mb.on(speed=speedb)
+
+        # don't let this loop use 100% CPU
+        sleep(0.01)
+
+
+tMotorB = Thread(target=task_runMotorB)
+tMotorB.start()
+
+
 
 while runLoop:
     if ts.is_pressed:
@@ -62,5 +94,11 @@ while runLoop:
 
     # don't let this loop use 100% CPU
     sleep(0.01)
+
+
+sleep(1)
+
+m.off()
+mb.off()
 
 sound.speak('Goodbye!')
